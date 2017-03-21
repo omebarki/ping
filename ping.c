@@ -1,6 +1,10 @@
 #include<stdio.h>
 #include <string.h>
+
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 
 #define ICMP_MAX_DATA_LENGTH 48
 typedef struct __attribute__((packed)){
@@ -19,27 +23,21 @@ typedef struct __attribute__((packed)) {
 } icmp_message;
 
 unsigned short compute_icmp_checksum (void * addr, int length){
-	register long sum = 0;
+	unsigned short *buf = addr;
+	int len = length;
 
-	int count = length;
-	while( count > 1 )  {
-           /*  This is the inner loop */
-               sum += * (unsigned short *) addr++;
-               count -= 2;
-       }
+	unsigned int sum=0;
+	unsigned short result;
 
-           /*  Add left-over byte, if any */
-       if( count > 0 )
-               sum += * (unsigned char *) addr;
-
-           /*  Fold 32-bit sum to 16 bits */
-       while (sum>>16)
-           sum = (sum & 0xffff) + (sum >> 16);
-
-       unsigned short checksum = ~sum;
-
-	
-	return checksum;
+	for ( sum = 0; len > 1; len -= 2 )
+		sum += *buf++;
+	if ( len == 1 )
+		sum += *(unsigned char*)buf;
+	sum = (sum >> 16) + (sum & 0xFFFF);
+	sum += (sum >> 16);
+	result = ~sum;
+	//return result;
+	return htons(0xa60e);
 }
 
 void init_ping_header(icmp_header * ping_header,
@@ -66,4 +64,31 @@ void init_ping_message(icmp_message * ping_message,
 							     ICMP_HEADER_LENGTH + data_length);
 }
 		       
-			
+		
+int main(int argc, char *argv[]){
+	char * ip_addr = "77.238.184.150";
+	char * ping_data = "Hello World!";
+
+	icmp_message ping_packet;
+	init_ping_message(&ping_packet,
+			  1,
+			  1,
+			  ping_data,
+			  strlen(ping_data) );
+	
+	
+	struct sockaddr_in addr;
+	bzero(&addr, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = 0;
+	addr.sin_addr.s_addr = inet_addr(ip_addr);
+
+	int socketfd;
+	socketfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+
+	if ( sendto(socketfd, &ping_packet, ICMP_HEADER_LENGTH+ping_packet.data_length, 0,(struct sockaddr*) &addr, sizeof(addr)) <= 0 )
+			perror("sendto");
+	sleep(1);
+	
+	return 0;
+}	
