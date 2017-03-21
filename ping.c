@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #define ICMP_MAX_DATA_LENGTH 48
 typedef struct __attribute__((packed)){
@@ -47,8 +48,8 @@ void init_ping_header(icmp_header * ping_header,
 	ping_header->type = 8;
 	ping_header->code = 0;
 	ping_header->checksum = 0;
-	ping_header->identifier = identifier;
-	ping_header->sequence_number = sequence_number;
+	ping_header->identifier = htons(identifier);
+	ping_header->sequence_number = htons(sequence_number);
 
 }
 
