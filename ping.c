@@ -40,7 +40,7 @@ unsigned short compute_icmp_checksum (void * addr, unsigned int length){
 	sum = (sum >> 16) + (sum & 0xFFFF);
 	sum += (sum >> 16);
 	result = ~sum;
-	return htons(result);
+	return result;
 }
 
 void init_ping_header(icmp_header * ping_header,
