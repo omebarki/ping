@@ -22,7 +22,11 @@ typedef struct __attribute__((packed)) {
 	unsigned short data_length;
 } icmp_message;
 
-unsigned short compute_icmp_checksum (void * addr, int length){
+unsigned int icmp_packet_length(icmp_message* packet){
+	return ICMP_HEADER_LENGTH + packet->data_length; 
+}
+
+unsigned short compute_icmp_checksum (void * addr, unsigned int length){
 	unsigned short *buf = addr;
 	int len = length;
 
@@ -36,8 +40,7 @@ unsigned short compute_icmp_checksum (void * addr, int length){
 	sum = (sum >> 16) + (sum & 0xFFFF);
 	sum += (sum >> 16);
 	result = ~sum;
-	//return result;
-	return htons(0xa60e);
+	return htons(result);
 }
 
 void init_ping_header(icmp_header * ping_header,
@@ -60,15 +63,15 @@ void init_ping_message(icmp_message * ping_message,
 	bzero(ping_message->data, ICMP_MAX_DATA_LENGTH);
 	memcpy(ping_message->data, data, data_length);
 	ping_message->data_length = data_length;
-	ping_message->header.checksum = compute_icmp_checksum(&ping_message, 
-							     ICMP_HEADER_LENGTH + data_length);
+	unsigned short packet_length = icmp_packet_length(ping_message);
+	ping_message->header.checksum = compute_icmp_checksum(ping_message, 
+							     packet_length);
 }
 		       
 		
 int main(int argc, char *argv[]){
-	char * ip_addr = "77.238.184.150";
+	char * ip_addr = "184.7.70.70";
 	char * ping_data = "Hello World!";
-
 	icmp_message ping_packet;
 	init_ping_message(&ping_packet,
 			  1,
@@ -86,7 +89,7 @@ int main(int argc, char *argv[]){
 	int socketfd;
 	socketfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 
-	if ( sendto(socketfd, &ping_packet, ICMP_HEADER_LENGTH+ping_packet.data_length, 0,(struct sockaddr*) &addr, sizeof(addr)) <= 0 )
+	if ( sendto(socketfd, &ping_packet, icmp_packet_length(&ping_packet), 0,(struct sockaddr*) &addr, sizeof(addr)) <= 0 )
 			perror("sendto");
 	sleep(1);
 	
