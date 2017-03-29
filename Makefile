@@ -1,4 +1,5 @@
-ping: 
+LINK_LIBS=-lpthread
+ping: $(LINK_LIBS)
 
 debug: ping.c
-	gcc -g ping.c -o ping.dbg
+	gcc $(LINK_LIBS) -g ping.c -o ping.dbg

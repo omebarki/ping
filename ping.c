@@ -6,6 +6,10 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
+#include <pthread.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #define ICMP_MAX_DATA_LENGTH 48
 typedef struct __attribute__((packed)){
 	unsigned char type;
@@ -67,8 +71,19 @@ void init_ping_message(icmp_message * ping_message,
 	ping_message->header.checksum = compute_icmp_checksum(ping_message, 
 							     packet_length);
 }
-		       
-		
+int socketfd;
+
+void * handle_ping_response(void * arg){
+	unsigned char icmp_response_buffer[1024];
+	ssize_t length;
+	length = recv(socketfd, icmp_response_buffer, 1024, MSG_WAITALL);
+	if(length>0){
+		printf("%.*s\n", (length-ICMP_HEADER_LENGTH),(icmp_response_buffer+20+ICMP_HEADER_LENGTH)); 
+	}
+	printf("\n");
+	pthread_exit(NULL);
+}
+	       
 int main(int argc, char *argv[]){
 	char * ip_addr = "184.7.70.70";
 	char * ping_data = "Hello World!";
@@ -86,12 +101,22 @@ int main(int argc, char *argv[]){
 	addr.sin_port = 0;
 	addr.sin_addr.s_addr = inet_addr(ip_addr);
 
-	int socketfd;
 	socketfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	int uid = getuid();
+	if (setuid(uid)) {
+    		perror("ping: setuid");
+		
+	}
+	pthread_t thread1;
+	if(pthread_create(&thread1, NULL, handle_ping_response, NULL) == -1) {
+    		perror("pthread_create");
+    		return EXIT_FAILURE;
+    	}
 
 	if ( sendto(socketfd, &ping_packet, icmp_packet_length(&ping_packet), 0,(struct sockaddr*) &addr, sizeof(addr)) <= 0 )
 			perror("sendto");
 	sleep(1);
+	close(socketfd);
 	
 	return 0;
 }	
